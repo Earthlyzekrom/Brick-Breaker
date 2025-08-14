@@ -1,0 +1,310 @@
+import pygame
+import random
+import sys
+
+# Initialize
+pygame.init()
+WIDTH, HEIGHT = 600, 800
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Brick")
+clock = pygame.time.Clock()
+
+font = pygame.font.SysFont("Arial", 48)
+small_font = pygame.font.SysFont("Arial", 24)
+
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+BLACK = (0, 0, 0)
+GRAY = (100, 100, 100)
+BRICK_COLORS = [(255, 99, 71), (173, 216, 230), (144, 238, 144), (255, 215, 0), (221, 160, 221)]
+
+def draw_vertical_gradient(surface, top_color, bottom_color):
+    height = surface.get_height()
+    for y in range(height):
+        ratio = y / height
+        r = int(top_color[0] * (1 - ratio) + bottom_color[0] * ratio)
+        g = int(top_color[1] * (1 - ratio) + bottom_color[1] * ratio)
+        b = int(top_color[2] * (1 - ratio) + bottom_color[2] * ratio)
+        pygame.draw.line(surface, (r, g, b), (0, y), (surface.get_width(), y))
+
+# Ball skins
+ball_skins = {
+    "default": None,
+    "tennis": pygame.image.load("tennis.png"),
+    "golf": pygame.image.load("golf-ball.png"),
+    "mirror": pygame.image.load("mirror-ball.png")
+}
+for key in ball_skins:
+    if ball_skins[key]:
+        ball_skins[key] = pygame.transform.scale(ball_skins[key], (20, 20))
+selected_skin = "default"
+
+# Powerup icons
+powerup_icons = {
+    'W': pygame.image.load("widen.png"),
+    'N': pygame.image.load("narrow.png")
+}
+for key in powerup_icons:
+    powerup_icons[key] = pygame.transform.scale(powerup_icons[key], (20, 20))
+
+class Particle:
+    def __init__(self, x, y, color):
+        self.x = x
+        self.y = y
+        self.vx = random.uniform(-2, 2)
+        self.vy = random.uniform(-2, 2)
+        self.color = color
+        self.lifetime = 30
+        self.size = 4
+
+    def update(self):
+        self.x += self.vx
+        self.y += self.vy
+        self.lifetime -= 1
+
+    def draw(self, surface):
+        if self.lifetime > 0:
+            alpha = max(0, int(255 * (self.lifetime / 30)))
+            surf = pygame.Surface((self.size, self.size), pygame.SRCALPHA)
+            surf.fill((*self.color, alpha))
+            surface.blit(surf, (self.x, self.y))
+
+def draw_button(rect, text):
+    pygame.draw.rect(screen, GRAY, rect)
+    pygame.draw.rect(screen, WHITE, rect, 2)
+    text_surface = small_font.render(text, True, WHITE)
+    screen.blit(text_surface, (rect.x + rect.width // 2 - text_surface.get_width() // 2, rect.y + rect.height // 2 - text_surface.get_height() // 2))
+
+def show_main_menu():
+    global selected_skin
+    while True:
+        screen.fill(BLACK)
+        title = font.render("Brick", True, WHITE)
+        screen.blit(title, (WIDTH // 2 - title.get_width() // 2, HEIGHT // 2 - 150))
+        start_button = pygame.Rect(WIDTH // 2 - 75, HEIGHT // 2 - 30, 150, 50)
+        exit_button = pygame.Rect(WIDTH // 2 - 75, HEIGHT // 2 + 40, 150, 50)
+        skin_button = pygame.Rect(WIDTH // 2 - 250, HEIGHT // 2 - 30, 150, 50)
+        draw_button(skin_button, "Ball Skins")
+        draw_button(start_button, "Start")
+        draw_button(exit_button, "Exit")
+        pygame.display.flip()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if skin_button.collidepoint(event.pos):
+                    show_skin_menu()
+                elif start_button.collidepoint(event.pos):
+                    return
+                elif exit_button.collidepoint(event.pos):
+                    pygame.quit()
+                    sys.exit()
+
+def show_skin_menu():
+    global selected_skin
+    while True:
+        screen.fill(BLACK)
+        title = font.render("Choose Skin", True, WHITE)
+        screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 100))
+        skins = [("default", "Default"), ("tennis", "Tennis"), ("golf", "Golf Ball"), ("mirror", "Mirror Ball")]
+        buttons = []
+        for i, (key, label) in enumerate(skins):
+            btn_rect = pygame.Rect(WIDTH // 2 - 100, 200 + i * 70, 200, 50)
+            buttons.append((btn_rect, key))
+            draw_button(btn_rect, label)
+        back_button = pygame.Rect(WIDTH // 2 - 75, HEIGHT - 100, 150, 50)
+        draw_button(back_button, "Back")
+        pygame.display.flip()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                for btn_rect, key in buttons:
+                    if btn_rect.collidepoint(event.pos):
+                        selected_skin = key
+                        return
+                if back_button.collidepoint(event.pos):
+                    return
+
+def show_pause_menu():
+    while True:
+        screen.fill(BLACK)
+        title = font.render("Paused", True, WHITE)
+        screen.blit(title, (WIDTH // 2 - title.get_width() // 2, HEIGHT // 2 - 150))
+        resume_button = pygame.Rect(WIDTH // 2 - 75, HEIGHT // 2 - 30, 150, 50)
+        menu_button = pygame.Rect(WIDTH // 2 - 75, HEIGHT // 2 + 40, 150, 50)
+        exit_button = pygame.Rect(WIDTH // 2 - 75, HEIGHT // 2 + 110, 150, 50)
+        draw_button(resume_button, "Resume")
+        draw_button(menu_button, "Quit to Menu")
+        draw_button(exit_button, "Exit")
+        pygame.display.flip()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if resume_button.collidepoint(event.pos):
+                    return None
+                elif menu_button.collidepoint(event.pos):
+                    return "menu"
+                elif exit_button.collidepoint(event.pos):
+                    pygame.quit()
+                    sys.exit()
+
+def reset_game(level=1):
+    paddle = pygame.Rect(WIDTH // 2 - 80, HEIGHT - 20, 120, 10)
+    ball = pygame.Rect(WIDTH // 2 - 10, HEIGHT // 2 - 10, 20, 20)
+    speed = 5 + (level - 1) * 0.5
+    ball_speed = [speed, -speed]
+    rows = min(5 + level, 10)
+    bricks, brick_colors, explosive_indices = [], [], set()
+    for i in range(10):
+        for j in range(rows):
+            idx = len(bricks)
+            rect = pygame.Rect(5 + i * 60, 40 + j * 30, 50, 20)
+            bricks.append(rect)
+            if random.random() < 0.1:
+                explosive_indices.add(idx)
+                brick_colors.append(RED)  # Red for explosive bricks
+            else:
+                brick_colors.append(random.choice(BRICK_COLORS))
+
+    return paddle, ball, ball_speed, bricks, brick_colors, explosive_indices, [], None, 0, []
+
+def spawn_powerup(brick_rect):
+    if random.random() < 0.3:
+        kind = random.choice(['W', 'N'])
+        return {'rect': pygame.Rect(brick_rect.centerx, brick_rect.centery, 20, 20), 'type': kind}
+    return None
+
+def show_game_over_screen():
+    while True:
+        screen.fill(BLACK)
+        title = font.render("Game Over", True, WHITE)
+        screen.blit(title, (WIDTH // 2 - title.get_width() // 2, HEIGHT // 2 - 120))
+        restart_button = pygame.Rect(WIDTH // 2 - 75, HEIGHT // 2 - 20, 150, 50)
+        exit_button = pygame.Rect(WIDTH // 2 - 75, HEIGHT // 2 + 60, 150, 50)
+        draw_button(restart_button, "Restart")
+        draw_button(exit_button, "Exit")
+        pygame.display.flip()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if restart_button.collidepoint(event.pos):
+                    return "restart"
+                elif exit_button.collidepoint(event.pos):
+                    pygame.quit()
+                    sys.exit()
+
+def game_loop():
+    level = 1
+    while True:
+        show_main_menu()
+        level = 1
+        paddle, ball, ball_speed, bricks, brick_colors, explosive_indices, powerups, active_powerup, powerup_timer, particles = reset_game(level)
+        running = True
+        while running:
+            if level == 1:
+                draw_vertical_gradient(screen, (0, 0, 50), (0, 0, 0))  # Level 1 gradient
+            elif level == 2:
+                draw_vertical_gradient(screen, (50, 0, 0), (0, 0, 50))  # Level 2 gradient
+            elif level == 3:
+                draw_vertical_gradient(screen, (0, 50, 0), (0, 0, 50))  # Level 3 gradient
+            # Add more levels with their respective backgrounds as needed
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        result = show_pause_menu()
+                        if result == "menu":
+                            running = False
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_a] and paddle.left > 0:
+                paddle.move_ip(-8, 0)
+            if keys[pygame.K_d] and paddle.right < WIDTH:
+                paddle.move_ip(8, 0)
+            ball.move_ip(*ball_speed)
+            if ball.left <= 0 or ball.right >= WIDTH:
+                ball_speed[0] *= -1
+            if ball.top <= 0:
+                ball_speed[1] *= -1
+            if ball.bottom >= HEIGHT:
+                if show_game_over_screen() == "restart":
+                    paddle, ball, ball_speed, bricks, brick_colors, explosive_indices, powerups, active_powerup, powerup_timer, particles = reset_game(level)
+                    continue
+                else:
+                    pygame.quit()
+                    sys.exit()
+            if ball.colliderect(paddle) and ball_speed[1] > 0:
+                ball.bottom = paddle.top
+                offset = (ball.centerx - paddle.centerx) / (paddle.width / 2)
+                ball_speed[0] = 5 * offset
+                ball_speed[1] = -abs(ball_speed[1])
+            hit_index = ball.collidelist(bricks)
+            if hit_index != -1:
+                brick_rect = bricks.pop(hit_index)
+                brick_color = brick_colors.pop(hit_index)
+                if hit_index in explosive_indices:
+                    explosive_indices.remove(hit_index)
+                    center_x, center_y = brick_rect.center
+                    explosion_radius = 70
+                    for i in reversed(range(len(bricks))):
+                        if bricks[i].collidepoint(center_x, center_y) or bricks[i].colliderect(pygame.Rect(center_x - explosion_radius, center_y - explosion_radius, explosion_radius * 2, explosion_radius * 2)):
+                            for _ in range(10):
+                                particles.append(Particle(bricks[i].centerx, bricks[i].centery, brick_colors[i]))
+                            bricks.pop(i)
+                            brick_colors.pop(i)
+                            explosive_indices.discard(i)
+                else:
+                    ball_speed[1] *= -1
+                    for _ in range(10):
+                        particles.append(Particle(brick_rect.centerx, brick_rect.centery, brick_color))
+                p = spawn_powerup(brick_rect)
+                if p:
+                    powerups.append(p)
+            for p in powerups[:]:
+                p['rect'].y += 4
+                if p['rect'].colliderect(paddle):
+                    if p['type'] == 'W':
+                        paddle.width = 180
+                    elif p['type'] == 'N':
+                        paddle.width = 60
+                    active_powerup = p['type']
+                    powerup_timer = pygame.time.get_ticks()
+                    powerups.remove(p)
+                elif p['rect'].top > HEIGHT:
+                    powerups.remove(p)
+            if active_powerup and pygame.time.get_ticks() - powerup_timer > 10000:
+                paddle.width = 120
+                active_powerup = None
+            if not bricks:
+                level += 1
+                pygame.time.delay(1000)
+                paddle, ball, ball_speed, bricks, brick_colors, explosive_indices, powerups, active_powerup, powerup_timer, particles = reset_game(level)
+            for particle in particles[:]:
+                particle.update()
+                if particle.lifetime <= 0:
+                    particles.remove(particle)
+            for particle in particles:
+                particle.draw(screen)
+            pygame.draw.rect(screen, WHITE, paddle)
+            if selected_skin == "default" or ball_skins[selected_skin] is None:
+                pygame.draw.ellipse(screen, WHITE, ball)
+            else:
+                screen.blit(ball_skins[selected_skin], ball.topleft)
+            for i, brick in enumerate(bricks):
+                pygame.draw.rect(screen, brick_colors[i], brick)
+            for p in powerups:
+                screen.blit(powerup_icons[p['type']], p['rect'].topleft)
+            level_text = small_font.render(f"Level: {level}", True, WHITE)
+            screen.blit(level_text, (10, 10))
+            pygame.display.flip()
+            clock.tick(60)
+
+game_loop()
